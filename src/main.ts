@@ -1,40 +1,76 @@
-let currentPlayer: "X" | "O" = "X"; // Track the current player
+document.addEventListener("DOMContentLoaded", () => {
+  const board = document.querySelectorAll<HTMLButtonElement>(".cell");
+  const statusMessage = document.getElementById("status") as HTMLElement;
+  const resetButton = document.getElementById("reset") as HTMLButtonElement;
 
-// Select all cells
-let cells = document.querySelectorAll(".items");
+  let currentPlayer: "X" | "O" = "X";
+  let gameState: (string | null)[] = Array(9).fill(null);
 
-// Select player headline elements
-let playerX = document.querySelector(".playerX") as HTMLElement;
-let playerO = document.querySelector(".playerO") as HTMLElement;
+  const winningPatterns: number[][] = [
+    [0, 1, 2], [3, 4, 5], [6, 7, 8],
+    [0, 3, 6], [1, 4, 7], [2, 5, 8],
+    [0, 4, 8], [2, 4, 6]
+  ];
 
-// Function to update the current player display
-function updatePlayerDisplay() {
-  if (currentPlayer === "X") {
-    playerX.style.fontWeight = "bold";
-    playerX.style.fontSize = "2rem";
-    playerO.style.fontWeight = "normal";
-    playerO.style.fontSize = "1rem";
-  } else {
-    playerO.style.fontWeight = "bold";
-    playerO.style.fontSize = "2rem";
-    playerX.style.fontWeight = "normal";
-    playerX.style.fontSize = "1rem";
-  }
-}
-
-// Add event listeners to each cell
-cells.forEach((cell) => {
-  cell.addEventListener("click", function (event) {
-    let button = event.target as HTMLButtonElement; // Ensure it's treated as a button
-
-    if (!button.textContent) {
-      // Check if the cell is empty
-      button.textContent = currentPlayer; // Set the mark
-      currentPlayer = currentPlayer === "X" ? "O" : "X"; // Switch player
-      updatePlayerDisplay(); // Update the UI
+  function loadGame() {
+    const savedState = localStorage.getItem("gameState");
+    if (savedState) {
+      gameState = JSON.parse(savedState);
+      gameState.forEach((mark, index) => {
+        if (mark) board[index].textContent = mark;
+      });
+      currentPlayer = (localStorage.getItem("currentPlayer") as "X" | "O") || "X";
+      statusMessage.textContent = `Current Player: ${currentPlayer}`;
     }
-  });
-});
+  }
 
-// Initialize the display
-updatePlayerDisplay();
+  function saveGame() {
+    localStorage.setItem("gameState", JSON.stringify(gameState));
+    localStorage.setItem("currentPlayer", currentPlayer);
+  }
+
+  function checkGameStatus() {
+    for (const pattern of winningPatterns) {
+      const [a, b, c] = pattern;
+      if (gameState[a] && gameState[a] === gameState[b] && gameState[a] === gameState[c]) {
+        statusMessage.textContent = `Winner: ${gameState[a]}!`;
+        disableBoard();
+        return;
+      }
+    }
+
+    if (gameState.every(cell => cell !== null)) {
+      statusMessage.textContent = "It's a draw!";
+    }
+  }
+
+  function disableBoard() {
+    board.forEach(cell => (cell.disabled = true));
+  }
+
+  board.forEach((cell, index) => {
+    cell.addEventListener("click", () => {
+      if (!gameState[index]) {
+        gameState[index] = currentPlayer;
+        cell.textContent = currentPlayer;
+        currentPlayer = currentPlayer === "X" ? "O" : "X";
+        statusMessage.textContent = `Current Player: ${currentPlayer}`;
+        saveGame();
+        checkGameStatus();
+      }
+    });
+  });
+
+  resetButton.addEventListener("click", () => {
+    gameState.fill(null);
+    board.forEach(cell => {
+      cell.textContent = "";
+      cell.disabled = false;
+    });
+    currentPlayer = "X";
+    statusMessage.textContent = "Current Player: X";
+    localStorage.clear();
+  });
+
+  loadGame();
+});
